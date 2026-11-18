@@ -462,6 +462,7 @@ service   online · first audio 1.4 s
 
 The header shows the current state (ready, rec with a timer, transcribing,
 generating, speaking, offline) and the section folds with a click on it.
+Folded, the header keeps an on/off button for spoken replies.
 Everything is clickable and runs the same command as its keybind: the
 replies and language toggles, the microphone picker, record (which turns into
 done while recording), speak last reply, and stop (cancels a recording or

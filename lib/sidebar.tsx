@@ -113,7 +113,21 @@ function VoiceSection(props) {
         <text fg={theme.text.base}>
           <b>Voice</b>
         </text>
-        <text fg={color(header().tone)}>{header().text}</text>
+        {/* Folded with the service simply off, the switch below says it already. */}
+        <Show when={view.open || props.status().service !== "stopped"}>
+          <text fg={color(header().tone)}>{header().text}</text>
+        </Show>
+        {/* Folded: a quick replies on/off switch, so the section need not open. */}
+        <Show when={!view.open}>
+          <text
+            fg={repliesOn() ? theme.text.feedback.success.base : theme.text.muted}
+            // Keep the click from also folding/unfolding the section.
+            onMouseDown={(event) => event.stopPropagation()}
+            onMouseUp={() => props.run("tts.mode")}
+          >
+            {repliesOn() ? "[on]" : "[off]"}
+          </text>
+        </Show>
       </box>
       <Show when={view.open}>
         <Row theme={theme} label="replies">
