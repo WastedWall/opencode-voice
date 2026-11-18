@@ -342,7 +342,7 @@ ignore it.
 
 - `ttsEndpoint` _(optional)_ - OpenAI-compatible base URL with `/audio/speech` support. When set, Piper is not used and `/tts-voice` is disabled
 - `ttsModel` _(optional)_ - model name sent to the API (default `chatterbox-multilingual`)
-- `ttsVoice` _(optional)_ - voice name sent to the API (omitted by default)
+- `ttsVoice` _(optional)_ - voice name sent to the API (omitted by default). The opencode-tts-stt service maps it to a reference clip, `<name>.wav` for every language or `<name>.en.wav` for English only
 
 Playback uses sox `play` on macOS and Linux, and `ffplay` on Windows.
 
