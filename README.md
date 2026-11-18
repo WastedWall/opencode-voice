@@ -357,14 +357,16 @@ command that starts the server, as an array:
 
 ```json
 "serviceCommand": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-  "-WindowStyle", "Hidden", "-File", "H:/Projects/opencode-tts-stt/scripts/start.ps1"]
+  "-File", "H:/Projects/opencode-tts-stt/scripts/start.ps1"]
 ```
 
 When OpenCode closes or crashes, nothing stops the server directly; instead
 the plugin starts it with `VOICE_IDLE_SHUTDOWN=60` and posts `/keepalive`
 every 15 seconds while spoken replies are on, and the server exits a minute
 after the last keepalive. The server's output goes to `voice-service.log` in
-`tmpDir`. Stopping posts
+`tmpDir`. Do not add `-WindowStyle Hidden`: the server
+shares the console of the terminal OpenCode runs in, so that flag hides the
+terminal window instead. No window appears without it. Stopping posts
 `/admin/shutdown` next to the endpoint and waits until the process reporting
 its `pid` in `/health` has exited. While the server is stopped, recording and
 speaking are unavailable; the sidebar shows "off" and "stopped · GPU free".
