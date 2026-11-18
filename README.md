@@ -463,6 +463,14 @@ service   online · first audio 1.4 s
 The header shows the current state (ready, rec with a timer, transcribing,
 generating, speaking, offline) and the section folds with a click on it.
 Folded, the header keeps an on/off button for spoken replies.
+
+Sections in the sidebar appear in plugin load order, and plugins from
+`cli.json` load after the folder plugins in `~/.config/opencode/plugins`. To
+put the Voice section higher, link the `sidebar-plugin/` folder into that
+plugins folder under a name that sorts where you want it (for example
+`a-0-voice`), and set `"sidebar": false` on the voice plugin so it does not
+draw a second one. The folder plugin gets the state and commands from the
+voice plugin through `sidebarBridge` in `lib/status.js`.
 Everything is clickable and runs the same command as its keybind: the
 replies and language toggles, the microphone picker, record (which turns into
 done while recording), speak last reply, and stop (cancels a recording or

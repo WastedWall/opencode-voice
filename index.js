@@ -44,7 +44,7 @@ import { registerTTS } from "./lib/tts.js";
 import { createClient } from "./lib/llm-client.js";
 import { createLogger } from "./lib/logger.js";
 import { createServiceControl } from "./lib/service.js";
-import { voiceStatus } from "./lib/status.js";
+import { sidebarBridge, voiceStatus } from "./lib/status.js";
 
 function loadPromptFile(filePath, logger, name) {
   if (!filePath) return null;
@@ -298,22 +298,27 @@ export default Plugin.define({
     }));
 
     // The sidebar is JSX, which only the TUI's loader compiles; importing it
-    // lazily keeps index.js loadable by node --test. Set "sidebar": false in
-    // the plugin options to leave it out.
+    // lazily keeps index.js loadable by node --test. The voice plugin draws
+    // the section itself unless "sidebar" is false; either way it publishes a
+    // register function on the sidebar bridge, so the folder plugin in
+    // sidebar-plugin/ can draw it from a higher place in the sidebar.
+    const controls = {
+      kv,
+      commands,
+      endpoint: options?.ttsEndpoint || options?.sttEndpoint,
+    };
+    const bridge = sidebarBridge();
+    let published = null;
     let disposeSidebar = null;
     let disposed = false;
-    if (options?.sidebar !== false) {
-      import("./lib/sidebar.tsx")
-        .then(({ registerSidebar }) => {
-          if (disposed) return;
-          disposeSidebar = registerSidebar(context, {
-            kv,
-            commands,
-            endpoint: options?.ttsEndpoint || options?.sttEndpoint,
-          });
-        })
-        .catch((err) => logger.log("plugin", `Sidebar failed to load: ${err.message}`, "warn"));
-    }
+    import("./lib/sidebar.tsx")
+      .then(({ registerSidebar }) => {
+        if (disposed) return;
+        published = { register: (target) => registerSidebar(target, controls) };
+        bridge.set(published);
+        if (options?.sidebar !== false) disposeSidebar = registerSidebar(context, controls);
+      })
+      .catch((err) => logger.log("plugin", `Sidebar failed to load: ${err.message}`, "warn"));
 
     // The keymap layer is removed with the plugin; data listeners and the
     // sidebar timers are not scoped by the host, so they are detached here
@@ -321,6 +326,7 @@ export default Plugin.define({
     return () => {
       disposed = true;
       disposeSidebar?.();
+      if (published && bridge.get() === published) bridge.set(null);
       service?.dispose();
       api.event.dispose();
     };

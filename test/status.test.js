@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   buttonStates,
+  createBridge,
   createStatus,
+  sidebarBridge,
   formatElapsed,
   headerState,
   healthUrl,
@@ -116,4 +118,25 @@ test("update changes fields without resetting the phase timer", () => {
   assert.equal(status.get().phase, "recording");
   assert.equal(status.get().since, 1000);
   assert.equal(status.get().service, "running");
+});
+
+test("sidebar bridge hands the controls to late subscribers and reports removal", () => {
+  const bridge = createBridge();
+  const seen = [];
+  const unsubscribe = bridge.subscribe((value) => seen.push(value));
+  const controls = { kv: {}, commands: [], endpoint: "http://h/v1" };
+  bridge.set(controls);
+  assert.equal(bridge.get(), controls);
+  bridge.set(null);
+  unsubscribe();
+  bridge.set(controls);
+  assert.deepEqual(seen, [controls, null]);
+});
+
+test("sidebar bridge is one shared object per global scope", () => {
+  const scope = {};
+  const first = sidebarBridge(scope);
+  assert.equal(sidebarBridge(scope), first);
+  assert.equal(scope[Symbol.for("opencode-voice.sidebar")], first);
+  assert.notEqual(sidebarBridge({}), first);
 });
