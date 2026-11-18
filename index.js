@@ -37,11 +37,14 @@
 
 import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { Plugin } from "@opencode/plugin/tui";
 import { registerSTT } from "./lib/stt.js";
 import { registerTTS } from "./lib/tts.js";
 import { createClient } from "./lib/llm-client.js";
 import { createLogger } from "./lib/logger.js";
+import { createServiceControl } from "./lib/service.js";
+import { voiceStatus } from "./lib/status.js";
 
 function loadPromptFile(filePath, logger, name) {
   if (!filePath) return null;
@@ -263,16 +266,63 @@ export default Plugin.define({
     const kv = createStorage(context);
     const api = createApi(context, kv);
 
-    const sttCommands = registerSTT(api, kv, complete, prompts, options, logger);
-    const ttsCommands = registerTTS(api, kv, complete, prompts, logger, options);
+    // With `serviceCommand`, the voice service only runs (and holds GPU
+    // memory) while spoken replies are on.
+    const service = createServiceControl({
+      command: options?.serviceCommand,
+      endpoint: options?.ttsEndpoint || options?.sttEndpoint,
+      logFile: options?.tmpDir ? path.join(options.tmpDir, "voice-service.log") : null,
+      onState: (state) => voiceStatus.update({ service: state }),
+      onLost: () => {
+        kv.set("tts.mode", "off");
+        context.ui.toast.show({
+          message: "Voice service stopped; turn spoken replies on to start it again",
+          variant: "warning",
+        });
+      },
+      logger,
+    });
+    // Spoken replies always start off, so a fresh OpenCode never takes the
+    // GPU by itself. A service left running (by an earlier session or another
+    // OpenCode window) is stopped to match.
+    kv.set("tts.mode", "off");
+    if (service) void service.stop();
 
+    const sttCommands = registerSTT(api, kv, complete, prompts, options, logger);
+    const ttsCommands = registerTTS(api, kv, complete, prompts, logger, options, service);
+
+    const commands = [...sttCommands, ...ttsCommands];
     context.keymap.layer(() => ({
       mode: "global",
-      commands: [...sttCommands, ...ttsCommands].map(toCommand),
+      commands: commands.map(toCommand),
     }));
 
-    // The keymap layer is removed with the plugin; data listeners are not
-    // scoped by the host, so they are detached here (hot reloads, TUI close).
-    return () => api.event.dispose();
+    // The sidebar is JSX, which only the TUI's loader compiles; importing it
+    // lazily keeps index.js loadable by node --test. Set "sidebar": false in
+    // the plugin options to leave it out.
+    let disposeSidebar = null;
+    let disposed = false;
+    if (options?.sidebar !== false) {
+      import("./lib/sidebar.tsx")
+        .then(({ registerSidebar }) => {
+          if (disposed) return;
+          disposeSidebar = registerSidebar(context, {
+            kv,
+            commands,
+            endpoint: options?.ttsEndpoint || options?.sttEndpoint,
+          });
+        })
+        .catch((err) => logger.log("plugin", `Sidebar failed to load: ${err.message}`, "warn"));
+    }
+
+    // The keymap layer is removed with the plugin; data listeners and the
+    // sidebar timers are not scoped by the host, so they are detached here
+    // (hot reloads, TUI close).
+    return () => {
+      disposed = true;
+      disposeSidebar?.();
+      service?.dispose();
+      api.event.dispose();
+    };
   },
 });

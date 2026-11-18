@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildFfmpegRecordArgs, parseDshowDevices } from "../lib/audio-windows.js";
+import {
+  buildFfmpegRecordArgs,
+  buildRawPlayerCommand,
+  parseDshowDevices,
+} from "../lib/audio-windows.js";
 import { buildMultipartTranscriptionRequest } from "../lib/stt.js";
 import { buildSpeechRequest } from "../lib/tts.js";
 
@@ -59,7 +63,7 @@ test("sends the transcription language only when it is not auto", () => {
   assert.equal(auto.headers.Authorization, "Bearer key");
 });
 
-test("builds speech API requests with WAV output and language detection", () => {
+test("builds speech API requests with streamed PCM and language detection", () => {
   const request = buildSpeechRequest("http://127.0.0.1:8787/v1/", {
     model: "chatterbox-multilingual",
     voice: null,
@@ -69,7 +73,7 @@ test("builds speech API requests with WAV output and language detection", () => 
   assert.deepEqual(request.body, {
     model: "chatterbox-multilingual",
     input: "Klaar.",
-    response_format: "wav",
+    response_format: "pcm",
     language: "auto",
   });
 
@@ -80,4 +84,38 @@ test("builds speech API requests with WAV output and language detection", () => 
   });
   assert.equal(withVoice.url, "http://host/v1/audio/speech");
   assert.equal(withVoice.body.voice, "elder");
+});
+
+test("builds raw PCM player commands per platform", () => {
+  assert.deepEqual(buildRawPlayerCommand(true, 24000), {
+    command: "ffplay",
+    args: [
+      "-nodisp",
+      "-autoexit",
+      "-loglevel",
+      "error",
+      "-f",
+      "s16le",
+      "-ar",
+      "24000",
+      "-ch_layout",
+      "mono",
+      "-i",
+      "-",
+    ],
+  });
+  assert.deepEqual(buildRawPlayerCommand(false, 22050).args, [
+    "-q",
+    "-t",
+    "raw",
+    "-r",
+    "22050",
+    "-e",
+    "signed",
+    "-b",
+    "16",
+    "-c",
+    "1",
+    "-",
+  ]);
 });

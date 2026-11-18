@@ -20,6 +20,10 @@ Single TUI plugin exported from `index.js` with logic split into `lib/`.
 - Diagnostics go through `lib/logger.js`, which is a no-op unless
   `OPENCODE_VOICE_DEBUG` is set (V2 removed the `client.app.log` sink).
 - No build step. Plain ESM JavaScript, shipped as-is.
+- One exception: `lib/sidebar.tsx` holds the sidebar JSX, which the TUI
+  compiles at load time. It is plain JavaScript otherwise, and `index.js`
+  imports it lazily so `node --test` never loads it. Keep logic out of it:
+  put it in `lib/status.js`, which is tested.
 
 ## Scripts
 

@@ -318,9 +318,12 @@ OpenRouter note: when `sttEndpoint` points at `https://openrouter.ai/api/v1`, th
 ### TTS API (optional)
 
 Instead of Piper, speech can come from an OpenAI-compatible `/audio/speech`
-endpoint that returns WAV. The plugin sends `"language": "auto"` so a server
-that supports it can pick the voice language from the text; other servers
-ignore the field.
+endpoint. The plugin asks for `"response_format": "pcm"` (16-bit mono, like
+OpenAI's) and plays the response while it streams in, so a server that sends
+audio per sentence starts speaking after the first one. The sample rate comes
+from an `X-Sample-Rate` header (default 24000). It also sends `"language"`
+(`auto`, or the choice from `/tts-language`); servers without that field
+ignore it.
 
 ```json
 {
@@ -342,6 +345,29 @@ ignore the field.
 - `ttsVoice` _(optional)_ - voice name sent to the API (omitted by default)
 
 Playback uses sox `play` on macOS and Linux, and `ffplay` on Windows.
+
+#### Start and stop the TTS server with spoken replies
+
+With `serviceCommand` the plugin starts the speech server when spoken replies
+are turned on and stops it when they are turned off, so it only holds GPU
+memory while it is used. Spoken replies are always off when OpenCode starts,
+and a server that is still running then is stopped (this also stops a server
+another OpenCode window is using). The value is the
+command that starts the server, as an array:
+
+```json
+"serviceCommand": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+  "-WindowStyle", "Hidden", "-File", "H:/Projects/opencode-tts-stt/scripts/start.ps1"]
+```
+
+When OpenCode closes or crashes, nothing stops the server directly; instead
+the plugin starts it with `VOICE_IDLE_SHUTDOWN=60` and posts `/keepalive`
+every 15 seconds while spoken replies are on, and the server exits a minute
+after the last keepalive. The server's output goes to `voice-service.log` in
+`tmpDir`. Stopping posts
+`/admin/shutdown` next to the endpoint and waits until the process reporting
+its `pid` in `/health` has exited. While the server is stopped, recording and
+speaking are unavailable; the sidebar shows "off" and "stopped · GPU free".
 
 ### Native Windows
 
@@ -398,21 +424,48 @@ If a path is not set, the built-in default prompt is used.
 Linux (via `pactl`, monitor sources excluded). On systems without a supported
 device listing, "System default" uses sox's default device (`sox -d`).
 
-`/stt-language` offers a curated list of common languages (plus auto-detect)
-and only affects local `whisper-cli` transcription, not the STT API. Languages
-outside the list can be set via the `sttLanguage` plugin option.
+`/stt-language` offers a curated list of common languages (plus auto-detect).
+It is passed to local `whisper-cli`, and sent as `language` to the STT API when
+it is not auto-detect. Languages outside the list can be set via the
+`sttLanguage` plugin option.
+
+On Windows, `/stt-mic` lists DirectShow devices through ffmpeg and has no
+"System default" entry.
 
 ### Text-to-speech
 
 The `leader` key in OpenCode is `ctrl+x`. So `leader+s` means press `ctrl+x`
 then `s`.
 
-| Command      | Keybind    | Description              |
-| ------------ | ---------- | ------------------------ |
-| `/tts-speak` | `leader+s` | Read last response aloud |
-| `/tts-mode`  | `leader+v` | Toggle auto TTS on/off   |
-| `/tts-stop`  | `escape`   | Stop playback            |
-| `/tts-voice` |            | Select TTS voice         |
+| Command         | Keybind    | Description                                   |
+| --------------- | ---------- | --------------------------------------------- |
+| `/tts-speak`    | `leader+s` | Read last response aloud                      |
+| `/tts-mode`     | `leader+v` | Toggle auto TTS on/off                        |
+| `/tts-stop`     | `escape`   | Stop playback                                 |
+| `/tts-voice`    |            | Select TTS voice                              |
+| `/tts-language` |            | Speech language for the TTS API: auto, nl, en |
+
+### Sidebar
+
+The plugin adds a Voice section to the session sidebar (the right pane):
+
+```
+▼ Voice ● ready
+replies   on  off
+language  auto  nl  en
+mic       Logitech PRO X ›
+service   online · first audio 1.4 s
+[● record] [▶ last] [■ stop]
+```
+
+The header shows the current state (ready, rec with a timer, transcribing,
+generating, speaking, offline) and the section folds with a click on it.
+Everything is clickable and runs the same command as its keybind: the
+replies and language toggles, the microphone picker, record (which turns into
+done while recording), speak last reply, and stop (cancels a recording or
+stops playback). The service line checks `/health` next to `ttsEndpoint` (or
+`sttEndpoint`) every 15 seconds. Set `"sidebar": false` in the plugin options
+to leave it out.
 
 ## How it works
 
