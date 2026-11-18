@@ -264,7 +264,7 @@ export default Plugin.define({
     const api = createApi(context, kv);
 
     const sttCommands = registerSTT(api, kv, complete, prompts, options, logger);
-    const ttsCommands = registerTTS(api, kv, complete, prompts, logger);
+    const ttsCommands = registerTTS(api, kv, complete, prompts, logger, options);
 
     context.keymap.layer(() => ({
       mode: "global",

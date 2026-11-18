@@ -276,8 +276,8 @@ For unauthenticated local endpoints (e.g. Ollama):
 - `reasoningEffort` _(optional)_ - reasoning level for models that support it
 - `chatTemplateKwargs` _(optional)_ - extra keyword arguments passed to the model's chat template (e.g. `{"enable_thinking": false}` for Qwen models to disable chain-of-thought)
 - `retries` _(optional)_ - number of retry attempts for transient LLM failures
-- `tmpDir` _(optional)_ - directory used for the temporary STT recording file (default `/tmp`)
-- `sttLanguage` _(optional)_ - spoken language passed to local `whisper-cli -l` (default `auto`; any whisper.cpp language code, e.g. `en`, `zh`). Can be changed at runtime via `/stt-language`
+- `tmpDir` _(optional)_ - directory used for the temporary STT recording file (default `/tmp`, or the system temp folder on Windows)
+- `sttLanguage` _(optional)_ - spoken language for transcription (default `auto`; any whisper language code, e.g. `en`, `nl`). Passed to local `whisper-cli -l`, and sent as the `language` field to `sttEndpoint` when it is not `auto`. Can be changed at runtime via `/stt-language`
 - `trimSilence` _(optional)_ - whether to remove leading silence from recordings (default `true`). Set to `false` if your recordings are missing the first word or syllable
 
 ### Logging
@@ -314,6 +314,45 @@ plugin on a machine without whisper-cpp installed.
 - `sttApiKeyEnv` _(optional)_ - environment variable containing the API key
 
 OpenRouter note: when `sttEndpoint` points at `https://openrouter.ai/api/v1`, the plugin automatically uses OpenRouter's JSON/base64 transcription request format instead of multipart upload.
+
+### TTS API (optional)
+
+Instead of Piper, speech can come from an OpenAI-compatible `/audio/speech`
+endpoint that returns WAV. The plugin sends `"language": "auto"` so a server
+that supports it can pick the voice language from the text; other servers
+ignore the field.
+
+```json
+{
+  "plugins": [
+    {
+      "package": "@renjfk/opencode-voice",
+      "options": {
+        "ttsEndpoint": "http://127.0.0.1:8787/v1",
+        "ttsModel": "chatterbox-multilingual",
+        "ttsVoice": "default"
+      }
+    }
+  ]
+}
+```
+
+- `ttsEndpoint` _(optional)_ - OpenAI-compatible base URL with `/audio/speech` support. When set, Piper is not used and `/tts-voice` is disabled
+- `ttsModel` _(optional)_ - model name sent to the API (default `chatterbox-multilingual`)
+- `ttsVoice` _(optional)_ - voice name sent to the API (omitted by default)
+
+Playback uses sox `play` on macOS and Linux, and `ffplay` on Windows.
+
+### Native Windows
+
+The plugin runs on native Windows with `sttEndpoint` and `ttsEndpoint` set
+(local `whisper-cli` and Piper are untested there). Recording and
+playback use ffmpeg instead of sox, because sox on Windows cannot be stopped
+without corrupting the WAV file. Install ffmpeg with `ffmpeg` and `ffplay` on
+`PATH` (for example `winget install Gyan.FFmpeg`).
+
+DirectShow has no system default microphone, so pick one once with `/stt-mic`
+before recording.
 
 ### Custom prompts
 
