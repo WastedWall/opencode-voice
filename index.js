@@ -306,6 +306,8 @@ export default Plugin.define({
       kv,
       commands,
       endpoint: options?.ttsEndpoint || options?.sttEndpoint,
+      // Fallback for the voice row until a voice is picked with /tts-voice.
+      voice: options?.ttsVoice || "",
     };
     const bridge = sidebarBridge();
     let published = null;

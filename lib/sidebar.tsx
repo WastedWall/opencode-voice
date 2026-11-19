@@ -12,16 +12,18 @@ import {
   buttonStates,
   headerState,
   healthUrl,
+  activeVoice,
   micLabel,
   serviceLine,
   ttsLanguage,
+  voiceLabel,
   voiceStatus,
 } from "./status.js";
 
 const HEALTH_MS = 15000;
 const HEALTH_TIMEOUT_MS = 1500;
 
-export function registerSidebar(context, { kv, commands, endpoint }) {
+export function registerSidebar(context, { kv, commands, endpoint, voice = "" }) {
   const [status, setStatus] = createSignal(voiceStatus.get());
   const [now, setNow] = createSignal(Date.now());
   const [online, setOnline] = createSignal(null);
@@ -63,6 +65,7 @@ export function registerSidebar(context, { kv, commands, endpoint }) {
         now={now}
         run={run}
         stop={stop}
+        voiceOption={voice}
       />
     ),
   });
@@ -92,6 +95,8 @@ function VoiceSection(props) {
   const repliesOn = () => props.kv.get("tts.mode", "off") === "on";
   const language = () => ttsLanguage(props.kv.get("tts.language", "auto"));
   const mic = () => micLabel(props.kv.get("stt.mic", ""));
+  const voice = () =>
+    voiceLabel(activeVoice(props.kv.get("tts.api.voice", null), props.voiceOption));
 
   // Replies on/off is one toggle command; only run it when the click changes something.
   const setReplies = (on) => {
@@ -150,6 +155,16 @@ function VoiceSection(props) {
               </Pill>
             )}
           </For>
+        </Row>
+        <Row theme={theme} label="voice">
+          <text
+            fg={theme.text.base}
+            // Opens a dialog: act on release (see the mic row).
+            onMouseDown={(event) => event.stopPropagation()}
+            onMouseUp={() => props.run("tts.voice")}
+          >
+            {`${voice()} ›`}
+          </text>
         </Row>
         <Row theme={theme} label="mic">
           <text

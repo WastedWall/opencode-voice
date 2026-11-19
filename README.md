@@ -340,9 +340,9 @@ ignore it.
 }
 ```
 
-- `ttsEndpoint` _(optional)_ - OpenAI-compatible base URL with `/audio/speech` support. When set, Piper is not used and `/tts-voice` is disabled
+- `ttsEndpoint` _(optional)_ - OpenAI-compatible base URL with `/audio/speech` support. When set, Piper is not used, and `/tts-voice` lists the voices from `<ttsEndpoint>/voices` (the opencode-tts-stt service has that endpoint). The picked voice is remembered and wins over `ttsVoice`
 - `ttsModel` _(optional)_ - model name sent to the API (default `chatterbox-multilingual`)
-- `ttsVoice` _(optional)_ - voice name sent to the API (omitted by default). The opencode-tts-stt service maps it to a reference clip, `<name>.wav` for every language or `<name>.en.wav` for English only
+- `ttsVoice` _(optional)_ - voice name sent to the API until one is picked with `/tts-voice` (omitted by default). The opencode-tts-stt service maps it to a reference clip, `<name>.wav` for every language or `<name>.en.wav` for English only
 
 Playback uses sox `play` on macOS and Linux, and `ffplay` on Windows.
 
@@ -455,6 +455,7 @@ The plugin adds a Voice section to the session sidebar (the right pane):
 ▼ Voice ● ready
 replies   on  off
 language  auto  nl  en
+voice     benjamin ›
 mic       Logitech PRO X ›
 service   online · first audio 1.4 s
 [● record] [▶ last] [■ stop]
@@ -472,7 +473,7 @@ plugins folder under a name that sorts where you want it (for example
 draw a second one. The folder plugin gets the state and commands from the
 voice plugin through `sidebarBridge` in `lib/status.js`.
 Everything is clickable and runs the same command as its keybind: the
-replies and language toggles, the microphone picker, record (which turns into
+replies and language toggles, the voice and microphone pickers, record (which turns into
 done while recording), speak last reply, and stop (cancels a recording or
 stops playback). The service line checks `/health` next to `ttsEndpoint` (or
 `sttEndpoint`) every 15 seconds. Set `"sidebar": false` in the plugin options

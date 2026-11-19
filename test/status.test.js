@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  activeVoice,
   buttonStates,
   createBridge,
   createStatus,
@@ -12,8 +13,10 @@ import {
   micLabel,
   serviceLine,
   ttsLanguage,
+  voiceLabel,
+  voiceTitle,
 } from "../lib/status.js";
-import { buildSpeechRequest } from "../lib/tts.js";
+import { buildSpeechRequest, voicesUrl } from "../lib/tts.js";
 
 test("status notifies listeners and keeps the first audio time", () => {
   let clock = 1000;
@@ -139,4 +142,22 @@ test("sidebar bridge is one shared object per global scope", () => {
   assert.equal(sidebarBridge(scope), first);
   assert.equal(scope[Symbol.for("opencode-voice.sidebar")], first);
   assert.notEqual(sidebarBridge({}), first);
+});
+
+test("active voice: a picked voice wins over the option, empty means built-in", () => {
+  assert.equal(activeVoice(null, "benjamin"), "benjamin");
+  assert.equal(activeVoice(undefined, undefined), "");
+  assert.equal(activeVoice("elder", "benjamin"), "elder");
+  assert.equal(activeVoice("", "benjamin"), "");
+  assert.equal(voiceLabel(""), "built-in");
+  assert.equal(voiceLabel("benjamin"), "benjamin");
+});
+
+test("voice picker titles show the languages", () => {
+  assert.equal(voiceTitle({ id: "benjamin", languages: ["en", "nl"] }), "benjamin (en, nl)");
+  assert.equal(voiceTitle({ id: "sam", languages: ["all"] }), "sam (all languages)");
+});
+
+test("voices URL sits next to /audio/speech", () => {
+  assert.equal(voicesUrl("http://127.0.0.1:8787/v1/"), "http://127.0.0.1:8787/v1/voices");
 });
